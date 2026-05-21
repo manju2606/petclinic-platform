@@ -1,5 +1,5 @@
 locals {
-  name_prefix               = "${var.project}-${var.environment}"
+  name_prefix                = "${var.project}-${var.environment}"
   oidc_provider_url_stripped = replace(aws_iam_openid_connect_provider.eks.url, "https://", "")
 }
 
@@ -93,8 +93,8 @@ resource "aws_eks_cluster" "this" {
   version  = var.cluster_version
 
   vpc_config {
-    subnet_ids              = var.subnet_ids
-    security_group_ids      = [var.cluster_sg_id]
+    subnet_ids         = var.subnet_ids
+    security_group_ids = [var.cluster_sg_id]
     # Both endpoints enabled: private for intra-VPC node traffic, public for
     # kubectl from outside. All-public subnet design (ADR-0001) — no private
     # subnets, so public endpoint is required for nodes to reach the API server.

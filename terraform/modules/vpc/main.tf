@@ -206,15 +206,15 @@ resource "aws_security_group" "rds" {
   vpc_id      = aws_vpc.this.id
 
   ingress {
-    description              = "MySQL from EKS nodes only"
-    from_port                = 3306
-    to_port                  = 3306
-    protocol                 = "tcp"
-    security_groups          = [aws_security_group.eks_node.id]
-    self                     = false
-    cidr_blocks              = []
-    ipv6_cidr_blocks         = []
-    prefix_list_ids          = []
+    description      = "MySQL from EKS nodes only"
+    from_port        = 3306
+    to_port          = 3306
+    protocol         = "tcp"
+    security_groups  = [aws_security_group.eks_node.id]
+    self             = false
+    cidr_blocks      = []
+    ipv6_cidr_blocks = []
+    prefix_list_ids  = []
   }
 
   egress = []

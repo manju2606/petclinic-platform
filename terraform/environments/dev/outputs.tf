@@ -84,3 +84,13 @@ output "kubeconfig_command" {
   description = "Run this command to configure kubectl after apply"
   value       = module.eks.kubeconfig_command
 }
+
+output "ecr_repository_urls" {
+  description = "Map of service name to ECR repository URL"
+  value       = module.ecr.repository_urls
+}
+
+output "ecr_repository_arns" {
+  description = "Map of service name to ECR repository ARN"
+  value       = module.ecr.repository_arns
+}
