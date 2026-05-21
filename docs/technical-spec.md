@@ -215,17 +215,19 @@ Created from EKS cluster identity issuer URL. Required for IRSA (IAM Roles for S
 | Max Size | 4 | 4 |
 | Desired Size | 2 | 2 |
 | Disk Size | 20 GB | 20 GB |
-| AMI Type | `AL2_ARM_64` | `AL2_ARM_64` |
+| AMI Type | `AL2023_ARM_64_STANDARD` | `AL2023_ARM_64_STANDARD` |
 
 > **Cost note:** t4g.small instances (2 vCPU, 2 GiB) are eligible for the AWS Graviton free trial (750 hrs/month until Dec 2026). Both dev and prod use identical sizing — this is a cost optimization for a learning project. In production, you would use larger instances (e.g., m7g.xlarge). Students should understand this trade-off.
 
 ### Node IAM Role Policies
 
-| Policy | Type |
-|--------|------|
-| `AmazonEKSWorkerNodePolicy` | AWS Managed |
-| `AmazonEKS_CNI_Policy` | AWS Managed |
-| `AmazonEC2ContainerRegistryReadOnly` | AWS Managed |
+| Policy | Attached To | Type |
+|--------|-------------|------|
+| `AmazonEKSWorkerNodePolicy` | Node IAM Role | AWS Managed |
+| `AmazonEC2ContainerRegistryReadOnly` | Node IAM Role | AWS Managed |
+| `AmazonEKS_CNI_Policy` | VPC CNI IRSA Role (`petclinic-{env}-vpc-cni-role`) | AWS Managed |
+
+> **Note:** `AmazonEKS_CNI_Policy` is intentionally placed on a dedicated VPC CNI IRSA role (bound to the `aws-node` service account in `kube-system`) rather than the node role. This limits blast radius: a compromised workload that reaches IMDS cannot assume EC2 networking permissions it doesn't need. The `vpc-cni` add-on is configured with `service_account_role_arn` pointing to this IRSA role.
 
 ### EKS Managed Add-ons
 

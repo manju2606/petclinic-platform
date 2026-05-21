@@ -88,6 +88,45 @@ variable "cluster_admin_arns" {
   default     = []
 }
 
+variable "authentication_mode" {
+  description = "EKS cluster authentication mode. API_AND_CONFIG_MAP supports both access entries and legacy aws-auth ConfigMap. Migrate to API to eliminate the ConfigMap attack surface once all access is via access entries."
+  type        = string
+  default     = "API_AND_CONFIG_MAP"
+
+  validation {
+    condition     = contains(["API", "CONFIG_MAP", "API_AND_CONFIG_MAP"], var.authentication_mode)
+    error_message = "authentication_mode must be API, CONFIG_MAP, or API_AND_CONFIG_MAP."
+  }
+}
+
+variable "bootstrap_cluster_creator_admin_permissions" {
+  description = "Whether the cluster creator IAM principal automatically gets cluster-admin access. Set to false and supply cluster_admin_arns so all admin access is explicit and auditable (recommended for new clusters)."
+  type        = bool
+  default     = true
+}
+
+variable "node_capacity_type" {
+  description = "EC2 capacity type for the managed node group: ON_DEMAND or SPOT. ON_DEMAND during the Graviton free trial; switch to SPOT in dev for cost savings after the trial expires."
+  type        = string
+  default     = "ON_DEMAND"
+
+  validation {
+    condition     = contains(["ON_DEMAND", "SPOT"], var.node_capacity_type)
+    error_message = "node_capacity_type must be ON_DEMAND or SPOT."
+  }
+}
+
+variable "addon_resolve_conflicts_on_update" {
+  description = "Conflict resolution when updating EKS managed add-ons. OVERWRITE discards manual config changes (fine for dev). PRESERVE fails on conflict so manual hotfixes are not silently reverted (recommended for prod)."
+  type        = string
+  default     = "OVERWRITE"
+
+  validation {
+    condition     = contains(["OVERWRITE", "PRESERVE", "NONE"], var.addon_resolve_conflicts_on_update)
+    error_message = "addon_resolve_conflicts_on_update must be OVERWRITE, PRESERVE, or NONE."
+  }
+}
+
 variable "tags" {
   description = "Additional tags to apply to all resources"
   type        = map(string)

@@ -4,6 +4,7 @@ locals {
 }
 
 data "aws_region" "current" {}
+data "aws_caller_identity" "current" {}
 
 # ── Cluster IAM Role ──────────────────────────────────────────────────────────
 
@@ -33,6 +34,57 @@ resource "aws_iam_role_policy_attachment" "cluster_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
 }
 
+# ── KMS Key for etcd Secret Encryption (HIGH-002) ────────────────────────────
+# Encrypts Kubernetes Secrets stored in etcd with a customer-managed key.
+# Enables CloudTrail visibility on every decrypt, and key revocation as an
+# incident-response option — not possible with the default AWS-managed key.
+
+resource "aws_kms_key" "eks_secrets" {
+  description             = "EKS etcd secret encryption — ${local.name_prefix}"
+  deletion_window_in_days = 7
+  enable_key_rotation     = true
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "EnableRootAdmin"
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
+        }
+        Action   = "kms:*"
+        Resource = "*"
+      },
+      {
+        Sid    = "AllowEKSClusterRole"
+        Effect = "Allow"
+        Principal = {
+          AWS = aws_iam_role.cluster.arn
+        }
+        Action = [
+          "kms:Encrypt",
+          "kms:Decrypt",
+          "kms:ReEncrypt*",
+          "kms:GenerateDataKey*",
+          "kms:DescribeKey",
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+
+  tags = merge(var.tags, {
+    Name      = "${local.name_prefix}-eks-secrets-key"
+    Component = "compute"
+  })
+}
+
+resource "aws_kms_alias" "eks_secrets" {
+  name          = "alias/${local.name_prefix}-eks-secrets"
+  target_key_id = aws_kms_key.eks_secrets.key_id
+}
+
 # ── EKS Cluster ───────────────────────────────────────────────────────────────
 
 resource "aws_eks_cluster" "this" {
@@ -52,7 +104,15 @@ resource "aws_eks_cluster" "this" {
   }
 
   access_config {
-    authentication_mode = "API_AND_CONFIG_MAP"
+    authentication_mode                         = var.authentication_mode
+    bootstrap_cluster_creator_admin_permissions = var.bootstrap_cluster_creator_admin_permissions
+  }
+
+  encryption_config {
+    provider {
+      key_arn = aws_kms_key.eks_secrets.arn
+    }
+    resources = ["secrets"]
   }
 
   enabled_cluster_log_types = ["api", "audit", "authenticator", "scheduler", "controllerManager"]
@@ -62,7 +122,10 @@ resource "aws_eks_cluster" "this" {
     Component = "compute"
   })
 
-  depends_on = [aws_iam_role_policy_attachment.cluster_policy]
+  depends_on = [
+    aws_iam_role_policy_attachment.cluster_policy,
+    aws_kms_key.eks_secrets,
+  ]
 }
 
 # ── OIDC Provider for IRSA ────────────────────────────────────────────────────
@@ -142,11 +205,14 @@ resource "aws_launch_template" "nodes" {
   }
 
   # IMDSv2 required — forces tokens instead of unauthenticated metadata requests.
-  # hop_limit = 2 allows containers (one additional hop) to access IMDS.
+  # hop_limit = 1 restricts IMDS access to the node itself (hop 0).
+  # Containers cannot reach IMDS because they add a second hop. With VPC CNI
+  # on an IRSA role and all workloads using projected service account tokens,
+  # containers have no legitimate need for IMDS-based credentials.
   metadata_options {
     http_endpoint               = "enabled"
     http_tokens                 = "required"
-    http_put_response_hop_limit = 2
+    http_put_response_hop_limit = 1
   }
 
   tags = merge(var.tags, {
@@ -169,7 +235,7 @@ resource "aws_eks_node_group" "this" {
 
   instance_types = var.node_instance_types
   ami_type       = var.node_ami_type
-  capacity_type  = "ON_DEMAND"
+  capacity_type  = var.node_capacity_type
 
   scaling_config {
     min_size     = var.node_min_size
@@ -210,6 +276,12 @@ resource "aws_eks_node_group" "this" {
 # ── Cluster Access Entries (PETPLAT-14) ───────────────────────────────────────
 # Grants AmazonEKSClusterAdminPolicy to each supplied IAM principal.
 # Set cluster_admin_arns in tfvars or via -var to enable kubectl access.
+#
+# To add additional users or roles after initial deploy:
+#   1. Add the IAM ARN to cluster_admin_arns in your tfvars
+#   2. Run: terraform plan -out plan.out && terraform apply plan.out
+#   3. Verify: aws eks list-access-entries --cluster-name <cluster>
+# For read-only access, create a separate entry with AmazonEKSViewPolicy.
 
 resource "aws_eks_access_entry" "admin" {
   for_each = toset(var.cluster_admin_arns)
@@ -332,7 +404,7 @@ resource "aws_eks_addon" "coredns" {
   addon_name                  = "coredns"
   addon_version               = "v1.11.1-eksbuild.9"
   resolve_conflicts_on_create = "OVERWRITE"
-  resolve_conflicts_on_update = "OVERWRITE"
+  resolve_conflicts_on_update = var.addon_resolve_conflicts_on_update
 
   tags = merge(var.tags, {
     Component = "compute"
@@ -346,7 +418,7 @@ resource "aws_eks_addon" "kube_proxy" {
   addon_name                  = "kube-proxy"
   addon_version               = "v1.29.3-eksbuild.5"
   resolve_conflicts_on_create = "OVERWRITE"
-  resolve_conflicts_on_update = "OVERWRITE"
+  resolve_conflicts_on_update = var.addon_resolve_conflicts_on_update
 
   tags = merge(var.tags, {
     Component = "compute"
@@ -361,7 +433,7 @@ resource "aws_eks_addon" "vpc_cni" {
   addon_version               = "v1.18.2-eksbuild.1"
   service_account_role_arn    = aws_iam_role.vpc_cni.arn
   resolve_conflicts_on_create = "OVERWRITE"
-  resolve_conflicts_on_update = "OVERWRITE"
+  resolve_conflicts_on_update = var.addon_resolve_conflicts_on_update
 
   tags = merge(var.tags, {
     Component = "compute"
@@ -378,7 +450,7 @@ resource "aws_eks_addon" "ebs_csi" {
   addon_version               = "v1.31.0-eksbuild.1"
   service_account_role_arn    = aws_iam_role.ebs_csi.arn
   resolve_conflicts_on_create = "OVERWRITE"
-  resolve_conflicts_on_update = "OVERWRITE"
+  resolve_conflicts_on_update = var.addon_resolve_conflicts_on_update
 
   tags = merge(var.tags, {
     Component = "compute"

@@ -69,6 +69,17 @@ output "eks_vpc_cni_role_arn" {
   value       = module.eks.vpc_cni_role_arn
 }
 
+output "eks_cluster_ca_certificate" {
+  description = "Base64-encoded EKS cluster CA certificate (used by Kubernetes provider)"
+  value       = module.eks.cluster_ca_certificate
+  sensitive   = true
+}
+
+output "eks_secrets_kms_key_arn" {
+  description = "KMS key ARN used for EKS etcd secret encryption"
+  value       = module.eks.eks_secrets_kms_key_arn
+}
+
 output "kubeconfig_command" {
   description = "Run this command to configure kubectl after apply"
   value       = module.eks.kubeconfig_command

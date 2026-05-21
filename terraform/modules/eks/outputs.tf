@@ -45,6 +45,11 @@ output "vpc_cni_role_arn" {
   value       = aws_iam_role.vpc_cni.arn
 }
 
+output "eks_secrets_kms_key_arn" {
+  description = "KMS key ARN used for EKS etcd secret encryption"
+  value       = aws_kms_key.eks_secrets.arn
+}
+
 output "kubeconfig_command" {
   description = "Run this command to configure kubectl after terraform apply"
   value       = "aws eks update-kubeconfig --name ${aws_eks_cluster.this.name} --region ${data.aws_region.current.name}"

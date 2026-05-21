@@ -21,3 +21,20 @@ variable "cluster_admin_arns" {
   type        = list(string)
   default     = []
 }
+
+variable "cluster_public_access_cidrs" {
+  description = "CIDRs allowed to reach the EKS public API endpoint. Defaults to unrestricted for dev. Override with your team's egress CIDRs for tighter control."
+  type        = list(string)
+  default     = ["0.0.0.0/0"]
+}
+
+variable "node_capacity_type" {
+  description = "EC2 capacity type for the managed node group: ON_DEMAND or SPOT. Use SPOT in dev for cost savings once the Graviton free trial expires."
+  type        = string
+  default     = "ON_DEMAND"
+
+  validation {
+    condition     = contains(["ON_DEMAND", "SPOT"], var.node_capacity_type)
+    error_message = "node_capacity_type must be ON_DEMAND or SPOT."
+  }
+}

@@ -4,3 +4,8 @@
 aws_region  = "eu-central-1"
 environment = "dev"
 project     = "petclinic"
+
+# IAM principal ARNs to grant EKS cluster admin access (PETPLAT-14).
+# Add your deploying IAM user or role ARN so kubectl works after apply.
+# To add more users later: append to this list and re-apply.
+# cluster_admin_arns = ["arn:aws:iam::123456789012:user/your-iam-user"]
