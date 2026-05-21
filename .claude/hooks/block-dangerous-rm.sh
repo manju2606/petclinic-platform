@@ -24,7 +24,7 @@ if echo "$COMMAND" | grep -qE 'rm\s+(-[a-zA-Z]*[rf][a-zA-Z]*\s+|--recursive|--fo
   for dir in $PROTECTED_DIRS; do
     # Check if the rm command targets a protected directory
     # Match: rm -rf terraform, rm -rf ./terraform, rm -rf terraform/, etc.
-    if echo "$COMMAND" | grep -qE "rm\s+.*(\s|/|^)\.?/?${dir}(/|\s|$)"; then
+    if echo "$COMMAND" | grep -qE "rm\s+.*(\s|/)\.?/?${dir}(/|\s|$)"; then
       echo "BLOCKED: Cannot 'rm -rf' the '${dir}/' directory."
       echo ""
       echo "This directory contains critical infrastructure code."

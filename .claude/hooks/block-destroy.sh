@@ -66,5 +66,16 @@ if echo "$COMMAND" | grep -qE 'kubectl\s+delete\s+(deployment|deploy|service|svc
   exit 2
 fi
 
+# Block kubectl delete -f <file> in production namespace
+# File-based deletes bypass the resource-type keyword check above
+if echo "$COMMAND" | grep -qE 'kubectl\s+delete\s+(-f|--filename)\s+' && \
+   echo "$COMMAND" | grep -qE '(-n|--namespace)[= ]?petclinic-prod'; then
+  echo "BLOCKED: 'kubectl delete -f' in petclinic-prod is not allowed via Claude Code."
+  echo ""
+  echo "File-based deletes can remove any resource type in production."
+  echo "If intentional, run the command directly in your terminal."
+  exit 2
+fi
+
 # Allow all other commands
 exit 0

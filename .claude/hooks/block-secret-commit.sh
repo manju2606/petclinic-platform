@@ -36,7 +36,7 @@ if echo "$COMMAND" | grep -qE 'git\s+(add|commit)'; then
   # These patterns match actual secret FILES, not infrastructure code about secrets
   # Use word-boundary matching to avoid false positives on terraform/modules/secrets/
   SECRET_FILE_PATTERNS=(
-    '\.env($|\s|/)'           # .env files (but not .envrc)
+    '\.env(\.|$|\s|/)'        # .env, .env.local, .env.production, etc. (but not .envrc)
     '\.tfvars($|\s)'          # terraform.tfvars (actual secrets)
     '\.pem($|\s)'             # PEM certificates/keys
     '\.key($|\s)'             # Private key files
