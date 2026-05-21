@@ -57,10 +57,13 @@ petclinic-platform/
 │   └── update-image-tags.yml     # Commit image tag updates → ArgoCD deploys
 │
 ├── scripts/                      # Operational scripts
-│   ├── bootstrap-state.sh        # Create S3 bucket + DynamoDB for TF state
-│   └── ecr-login.sh              # ECR authentication helper
+│   ├── env-status.sh             # Check EKS node group + RDS status and estimated cost
+│   ├── start-env.sh              # Resume environment: start RDS + scale EKS nodes up
+│   └── stop-env.sh               # Pause environment: stop RDS + scale EKS nodes to 0
 │
 └── docs/                         # Operational Documentation
+    ├── technical-spec.md         # Single source of truth for all infra values
+    ├── jira-backlog.md           # Epic and story backlog
     ├── architecture.md           # Infrastructure architecture & diagrams
     ├── runbook.md                # Day-2 operations (restart, scale, rollback)
     ├── incident-playbook.md      # Common failures & fixes
@@ -88,6 +91,10 @@ petclinic-platform/
 | CD | ArgoCD | GitOps — watches Git, auto-sync (dev), manual sync (prod) |
 | Packaging | Helm | Generic chart, per-service + per-env values |
 | Node Scaling | Karpenter | NodePools, EC2NodeClass, Spot diversification |
+
+## Contributing
+
+Issues and work items are tracked in the [Jira backlog](docs/jira-backlog.md) — not GitHub Issues. Open PRs against `main` for all infrastructure changes.
 
 ## Environments
 
